@@ -1,0 +1,29 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="app-version" content="<%= htmlWebpackPlugin.options.version %>">
+    <title>GradientFactory</title>
+    <link rel="stylesheet" type="text/css" href="index.css?v=<%= htmlWebpackPlugin.options.version %>" />
+</head>
+
+<body>
+    <header>
+        <div class="header-title ag6775">
+            <%= htmlWebpackPlugin.options.name %>
+        </div>
+        <div class="header-meta">
+            Version <%= htmlWebpackPlugin.options.version %><br>
+                Gradient Editor
+        </div>
+    </header>
+
+    <div id="main"></div>
+
+    <script defer="defer" src="bundle.js?v=<%= htmlWebpackPlugin.options.version %>"></script>
+</body>
+
+</html>
