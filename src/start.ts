@@ -65,10 +65,11 @@ export class Start {
 
     private buildEasingDropdown(): HTMLSelectElement {
         const select = document.createElement('select');
-        select.className = 'easing-select';
+        select.className = 'easing-select ag6775';
 
         for (const value of Object.values(Easing)) {
             const option = document.createElement('option');
+            option.className = 'ag6775';
             option.value = value;
             option.textContent = value;
             select.appendChild(option);

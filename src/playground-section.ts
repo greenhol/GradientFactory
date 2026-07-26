@@ -19,7 +19,7 @@ export class PlaygroundSection {
 
         this._input = document.createElement('input');
         this._input.type = 'text';
-        this._input.className = 'playground-input';
+        this._input.className = 'playground-input ag6775';
         this._input.value = initialGradient;
         container.appendChild(this._input);
 
