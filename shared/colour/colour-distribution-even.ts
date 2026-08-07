@@ -8,9 +8,8 @@ export function colourDistributionEven(
     lMax: number = 1,
     cMin: number = 0,
     cMax: number = 0.5,
-    seed: number | null = null,
+    rng: XoRng,
 ): RGB[] {
-    const rng = new XoRng(seed);
     const candidatesPerColor = 20;
 
     const chosenPoints: { x: number; y: number; z: number; }[] = [];

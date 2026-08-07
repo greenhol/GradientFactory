@@ -1,6 +1,7 @@
 import { RGB } from '../shared/colour/colour';
 import { colourDistributionEven } from '../shared/colour/colour-distribution-even';
 import { ColourMapper, Easing } from '../shared/colour/colour-mapper';
+import { XoRng } from '../shared/xo-rng';
 import { DualRangeSlider } from './dual-range-slider';
 import { GradientBand } from './gradient-band';
 
@@ -97,7 +98,7 @@ export class RandomizerSection {
             this._config.lMax,
             this._config.cMin,
             this._config.cMax,
-            seed,
+            new XoRng(seed),
         );
     }
 
