@@ -1,8 +1,8 @@
 import { RGB } from '../shared/colour/colour';
+import { colourDistributionEven } from '../shared/colour/colour-distribution-even';
 import { ColourMapper, Easing } from '../shared/colour/colour-mapper';
 import { DualRangeSlider } from './dual-range-slider';
 import { GradientBand } from './gradient-band';
-import { distributeColors } from './random-gradient';
 
 export interface RandomizerConfig {
     seed: number;
@@ -91,7 +91,7 @@ export class RandomizerSection {
 
     private generateColours(): RGB[] {
         const seed = this._config.seed === -1 ? null : this._config.seed;
-        return distributeColors(
+        return colourDistributionEven(
             this._config.count,
             this._config.lMin,
             this._config.lMax,

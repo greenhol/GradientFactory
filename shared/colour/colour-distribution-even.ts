@@ -1,17 +1,17 @@
-import { OkLch, RGB } from '../shared/colour/colour';
-import { converter } from '../shared/colour/colour-converter';
-import { XoRng } from '../shared/xo-rng';
+import { XoRng } from '../xo-rng';
+import { OkLch, RGB } from './colour';
+import { converter } from './colour-converter';
 
-export function distributeColors(
+export function colourDistributionEven(
     count: number,
     lMin: number = 0,
     lMax: number = 1,
     cMin: number = 0,
     cMax: number = 0.5,
-    seed: number | null = null
+    seed: number | null = null,
 ): RGB[] {
     const rng = new XoRng(seed);
-    const candidatesPerColor = 20; // number of random candidates to try per color
+    const candidatesPerColor = 20;
 
     const chosenPoints: { x: number; y: number; z: number; }[] = [];
     const results: RGB[] = [];
