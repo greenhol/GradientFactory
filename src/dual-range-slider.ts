@@ -81,7 +81,7 @@ export class DualRangeSlider {
         this._root.appendChild(handle);
 
         const valueLabel = document.createElement('span');
-        valueLabel.className = 'dual-slider-value ag6775';
+        valueLabel.className = 'dual-slider-value';
         handle.appendChild(valueLabel);
 
         return handle;

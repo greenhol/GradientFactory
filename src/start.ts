@@ -2,6 +2,7 @@ import { filter } from 'rxjs';
 import { Easing } from '../shared/colour/colour-mapper';
 import { configVersionCheck, ModuleConfig } from '../shared/config';
 import { GallerySection } from './gallery-section';
+import { ImagePaletteSection } from './image-palette-section';
 import { PlaygroundSection } from './playground-section';
 import { RandomizerConfig, RandomizerSection } from './randomizer-section';
 
@@ -19,6 +20,7 @@ export class Start {
     private _config: ModuleConfig<MainConfig>;
     private readonly _playground: PlaygroundSection;
     private readonly _randomizer: RandomizerSection;
+    private readonly _image: ImagePaletteSection;
     private readonly _gallery: GallerySection;
 
     constructor() {
@@ -61,6 +63,11 @@ export class Start {
         root.appendChild(randomizerSection);
         this._randomizer = new RandomizerSection(randomizerSection, this._config.data.randomizer, this._config.data.easing);
 
+        const imageSection = document.createElement('section');
+        imageSection.appendChild(this.buildLabel('Image Extraction'));
+        root.appendChild(imageSection);
+        this._image = new ImagePaletteSection(imageSection, this._config.data.easing);
+
         const gallerySection = document.createElement('section');
         gallerySection.appendChild(this.buildLabel('Gallery'));
         const galleryGrid = document.createElement('div');
@@ -83,7 +90,7 @@ export class Start {
 
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'randomizer-button';
+        button.className = 'div-button';
         button.textContent = 'Reset config';
         button.addEventListener('click', () => {
             this._config.reset();
@@ -115,6 +122,7 @@ export class Start {
             this._config.data.easing = select.value as Easing;
             this._playground.setEasing(this._config.data.easing);
             this._randomizer.setEasing(this._config.data.easing);
+            this._image.setEasing(this._config.data.easing);
             this._gallery.setEasing(this._config.data.easing);
         });
 

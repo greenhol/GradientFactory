@@ -68,7 +68,7 @@ export class RandomizerSection {
 
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'randomizer-button';
+        button.className = 'div-button';
         button.textContent = 'Randomize';
         button.addEventListener('click', () => this.randomize());
         footer.appendChild(button);
@@ -122,7 +122,6 @@ export class RandomizerSection {
         field.appendChild(labelText);
 
         const input = document.createElement('input');
-        input.className = 'ag6775';
         input.type = 'number';
         input.min = String(min);
         input.max = String(max);
