@@ -1,5 +1,6 @@
 import { RGB, OkLab } from '../shared/colour/colour';
 import { converter } from '../shared/colour/colour-converter';
+import { XoRng } from '../shared/xo-rng';
 
 export enum ColourOrder {
     LIGHTNESS = 'Lightness',
@@ -14,6 +15,12 @@ export interface ColourCluster {
     weight: number; // fraction of sampled pixels assigned to this cluster
 }
 
+interface KMeansResult {
+    centroids: OkLab[];
+    assignments: number[];
+    inertia: number; // sum of squared distance from every point to its assigned centroid — lower is tighter/better
+}
+
 /**
  * Extracts the n most predominant colours from a set of pixels via
  * k-means clustering in OkLab space — Euclidean distance there
@@ -21,50 +28,71 @@ export interface ColourCluster {
  * resulting cluster centroids genuinely look "predominant" rather than
  * just numerically common.
  *
+ * k-means is randomly seeded, so a single run's quality varies. Each call
+ * here runs RESTART_COUNT independent attempts (seeded 0, 1, 2, ... — so
+ * identical inputs always produce identical output) and keeps whichever
+ * attempt has the lowest inertia. This both stabilises results (repeated
+ * calls with the same parameters no longer look "random") and makes the
+ * vividness weighting's effect visible, since it's no longer buried under
+ * run-to-run noise.
+ *
  * Clustering and ordering are exposed as two separate public methods so
- * that changing only the sort order never re-runs the randomly-seeded
- * clustering step, which could otherwise silently return a different
- * palette than what's currently on screen.
+ * that changing only the sort order never re-runs clustering, which could
+ * otherwise silently return a different palette than what's currently on
+ * screen.
  */
 class ImageColourExtractor {
 
-    public clusterColours(pixels: RGB[], k: number): ColourCluster[] {
+    // How many independent, differently-seeded k-means attempts to run per
+    // call, keeping the best (lowest-inertia) one. Higher = more stable/
+    // better results, at roughly linear extra cost. 6-10 is a reasonable
+    // range for a few thousand downsampled pixels; drop it if this ever
+    // feels sluggish on slower devices.
+    private static readonly RESTART_COUNT = 8;
+
+    // `vividness` (0–1) scales up to this exponent: weight = chroma^exponent.
+    // A power law (not a linear multiplier) is needed because what it has
+    // to overcome is pixel COUNT, not just weight-per-pixel — a vivid
+    // accent might be 5% of the pixels against a 95% dull background, so
+    // even a 2-3x linear weight advantage gets swamped in the sum. Small
+    // chroma differences need to be amplified exponentially to let a
+    // numerically small vivid minority actually dominate.
+    //
+    // Tuning: 0 = off (plain mean). ~2-3 = noticeable but gentle. ~4-6 =
+    // strong, clearly favours accent colours. Much above that, a single
+    // unusually vivid pixel (e.g. a JPEG artifact or a tiny bright object)
+    // can start to dominate a whole cluster on its own — diminishing
+    // returns / risk of instability past that point.
+    private static readonly SEED_VIVIDNESS_MAX_EXPONENT = 6;
+    private static readonly CENTROID_VIVIDNESS_MAX_EXPONENT = 6;
+
+    // Chroma floor added before exponentiating, so a perfectly neutral
+    // (chroma = 0) pixel never gets a literal zero weight — which would
+    // otherwise collapse the weighted sum to zero if every pixel in a
+    // cluster happened to be neutral.
+    private static readonly CHROMA_EPSILON = 0.001;
+
+    /**
+     * @param vividness 0–1. At 0, behaves as plain unweighted k-means.
+     * Higher values favour more saturated, eye-catching colours over
+     * faithfully-averaged ones.
+     */
+    public clusterColours(pixels: RGB[], k: number, vividness: number = 0): ColourCluster[] {
         const points = pixels.map((p) => converter.rgbToOkLab(p));
+        const chromas = points.map((p) => this.chroma(p));
         const count = points.length;
         const clusterCount = Math.max(1, Math.min(k, count));
 
-        let centroids = this.kMeansPlusPlusInit(points, clusterCount);
-        const assignments = new Array<number>(count).fill(0);
-        const maxIterations = 20;
-
-        for (let iter = 0; iter < maxIterations; iter++) {
-            let changed = false;
-
-            for (let i = 0; i < count; i++) {
-                const nearest = this.nearestCentroidIndex(points[i], centroids);
-                if (assignments[i] !== nearest) {
-                    assignments[i] = nearest;
-                    changed = true;
-                }
+        let best: KMeansResult | null = null;
+        for (let restart = 0; restart < ImageColourExtractor.RESTART_COUNT; restart++) {
+            const rng = new XoRng(restart); // seeded by restart index: same inputs -> same set of attempts, every time
+            const result = this.runKMeansOnce(points, chromas, clusterCount, vividness, rng);
+            if (!best || result.inertia < best.inertia) {
+                best = result;
             }
-
-            const sums = centroids.map(() => ({ L: 0, a: 0, b: 0, count: 0 }));
-            for (let i = 0; i < count; i++) {
-                const sum = sums[assignments[i]];
-                sum.L += points[i].L;
-                sum.a += points[i].a;
-                sum.b += points[i].b;
-                sum.count++;
-            }
-
-            centroids = sums.map((sum, index) =>
-                sum.count > 0
-                    ? { L: sum.L / sum.count, a: sum.a / sum.count, b: sum.b / sum.count }
-                    : centroids[index] // empty cluster: keep its previous position rather than NaN-ing out
-            );
-
-            if (!changed && iter > 0) break;
         }
+
+        const { centroids, assignments } = best!;
 
         const clusterSizes = centroids.map(() => 0);
         for (const clusterIndex of assignments) {
@@ -98,22 +126,85 @@ class ImageColourExtractor {
         }
     }
 
-    private kMeansPlusPlusInit(points: OkLab[], k: number): OkLab[] {
-        const centroids: OkLab[] = [points[Math.floor(Math.random() * points.length)]];
+    private runKMeansOnce(
+        points: OkLab[],
+        chromas: number[],
+        clusterCount: number,
+        vividness: number,
+        rng: XoRng,
+    ): KMeansResult {
+        let centroids = this.kMeansPlusPlusInit(points, chromas, clusterCount, vividness, rng);
+        const count = points.length;
+        const assignments = new Array<number>(count).fill(0);
+        const maxIterations = 20;
+        const centroidExponent = vividness * ImageColourExtractor.CENTROID_VIVIDNESS_MAX_EXPONENT;
+
+        for (let iter = 0; iter < maxIterations; iter++) {
+            let changed = false;
+
+            // Assignment stays purely distance-based regardless of
+            // vividness, so clusters remain a sensible spatial partition
+            // of the image — only seeding and the final colour are biased.
+            for (let i = 0; i < count; i++) {
+                const nearest = this.nearestCentroidIndex(points[i], centroids);
+                if (assignments[i] !== nearest) {
+                    assignments[i] = nearest;
+                    changed = true;
+                }
+            }
+
+            const sums = centroids.map(() => ({ L: 0, a: 0, b: 0, weight: 0 }));
+            for (let i = 0; i < count; i++) {
+                const weight = Math.pow(chromas[i] + ImageColourExtractor.CHROMA_EPSILON, centroidExponent);
+                const sum = sums[assignments[i]];
+                sum.L += points[i].L * weight;
+                sum.a += points[i].a * weight;
+                sum.b += points[i].b * weight;
+                sum.weight += weight;
+            }
+
+            centroids = sums.map((sum, index) =>
+                sum.weight > 0
+                    ? { L: sum.L / sum.weight, a: sum.a / sum.weight, b: sum.b / sum.weight }
+                    : centroids[index] // empty cluster: keep its previous position rather than NaN-ing out
+            );
+
+            if (!changed && iter > 0) break;
+        }
+
+        let inertia = 0;
+        for (let i = 0; i < count; i++) {
+            inertia += this.okLabDistanceSq(points[i], centroids[assignments[i]]);
+        }
+
+        return { centroids, assignments, inertia };
+    }
+
+    private chroma(p: OkLab): number {
+        return Math.sqrt(p.a * p.a + p.b * p.b);
+    }
+
+    private kMeansPlusPlusInit(points: OkLab[], chromas: number[], k: number, vividness: number, rng: XoRng): OkLab[] {
+        const centroids: OkLab[] = [points[Math.floor(rng.next() * points.length)]];
+        const seedExponent = vividness * ImageColourExtractor.SEED_VIVIDNESS_MAX_EXPONENT;
 
         while (centroids.length < k) {
-            const distances = points.map((p) => Math.min(...centroids.map((c) => this.okLabDistanceSq(p, c))));
-            const total = distances.reduce((sum, d) => sum + d, 0);
+            const weights = points.map((p, i) => {
+                const distance = Math.min(...centroids.map((c) => this.okLabDistanceSq(p, c)));
+                const vividnessFactor = Math.pow(chromas[i] + ImageColourExtractor.CHROMA_EPSILON, seedExponent);
+                return distance * vividnessFactor;
+            });
+            const total = weights.reduce((sum, w) => sum + w, 0);
 
             if (total === 0) {
-                centroids.push(points[Math.floor(Math.random() * points.length)]);
+                centroids.push(points[Math.floor(rng.next() * points.length)]);
                 continue;
             }
 
-            let threshold = Math.random() * total;
-            let chosenIndex = distances.length - 1;
-            for (let i = 0; i < distances.length; i++) {
-                threshold -= distances[i];
+            let threshold = rng.next() * total;
+            let chosenIndex = weights.length - 1;
+            for (let i = 0; i < weights.length; i++) {
+                threshold -= weights[i];
                 if (threshold <= 0) {
                     chosenIndex = i;
                     break;
@@ -146,8 +237,9 @@ class ImageColourExtractor {
     }
 
     private shuffle<T>(array: T[]): T[] {
+        const rng = new XoRng(null); // genuinely random each time — intentional, this is the "Random" order option
         for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
+            const j = Math.floor(rng.next() * (i + 1));
             [array[i], array[j]] = [array[j], array[i]];
         }
         return array;

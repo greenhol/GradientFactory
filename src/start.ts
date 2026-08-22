@@ -2,7 +2,8 @@ import { filter } from 'rxjs';
 import { Easing } from '../shared/colour/colour-mapper';
 import { configVersionCheck, ModuleConfig } from '../shared/config';
 import { GallerySection } from './gallery-section';
-import { ImagePaletteSection } from './image-palette-section';
+import { ColourOrder } from './image-colour-extractor';
+import { ExtractorConfig, ImagePaletteSection } from './image-palette-section';
 import { PlaygroundSection } from './playground-section';
 import { RandomizerConfig, RandomizerSection } from './randomizer-section';
 
@@ -13,6 +14,7 @@ interface MainConfig {
     easing: Easing,
     playgroundString: string;
     randomizer: RandomizerConfig;
+    extractor: ExtractorConfig;
 }
 
 export class Start {
@@ -37,6 +39,11 @@ export class Start {
                 cMin: 0,
                 cMax: 0.5,
             },
+            extractor: {
+                points: 5,
+                vividness: 50,
+                order: ColourOrder.LIGHTNESS,
+            }
         }, 'mainConfig' + APP_NAME);
 
         const root = document.getElementById('main');
@@ -44,32 +51,36 @@ export class Start {
             throw new Error('Start: could not find #main element to mount GradientPage into');
         }
 
-        this.buildResetButton();
-
         root.innerHTML = '';
 
-        const easingSection = document.createElement('section');
-        easingSection.appendChild(this.buildLabel('Interpolation'));
-        easingSection.appendChild(this.buildEasingDropdown());
-        root.appendChild(easingSection);
+        const configSection = document.createElement('section');
+        configSection.appendChild(this.buildSectionLabel('Config'));
+        configSection.appendChild(this.buildEasingDropdown());
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'div-button';
+        button.textContent = 'Reset config';
+        button.addEventListener('click', () => this.resetConfig());
+        configSection.appendChild(button);
+        root.appendChild(configSection);
 
         const playgroundSection = document.createElement('section');
-        playgroundSection.appendChild(this.buildLabel('Playground'));
+        playgroundSection.appendChild(this.buildSectionLabel('Work Bench'));
         root.appendChild(playgroundSection);
         this._playground = new PlaygroundSection(playgroundSection, this._config.data.playgroundString, this._config.data.easing);
 
         const randomizerSection = document.createElement('section');
-        randomizerSection.appendChild(this.buildLabel('Randomizer'));
+        randomizerSection.appendChild(this.buildSectionLabel('Randomizer'));
         root.appendChild(randomizerSection);
         this._randomizer = new RandomizerSection(randomizerSection, this._config.data.randomizer, this._config.data.easing);
 
         const imageSection = document.createElement('section');
-        imageSection.appendChild(this.buildLabel('Image Extraction'));
+        imageSection.appendChild(this.buildSectionLabel('Image Extractor'));
         root.appendChild(imageSection);
-        this._image = new ImagePaletteSection(imageSection, this._config.data.easing);
+        this._image = new ImagePaletteSection(imageSection, this._config.data.extractor, this._config.data.easing);
 
         const gallerySection = document.createElement('section');
-        gallerySection.appendChild(this.buildLabel('Gallery'));
+        gallerySection.appendChild(this.buildSectionLabel('Gallery'));
         const galleryGrid = document.createElement('div');
         galleryGrid.className = 'gallery-grid';
         gallerySection.appendChild(galleryGrid);
@@ -81,25 +92,12 @@ export class Start {
             .subscribe({ next: (gradientString) => { this._config.data.playgroundString = gradientString; } });
     }
 
-    private buildResetButton(): void {
-        const configBar = document.getElementById('config-bar');
-        if (!configBar) {
-            console.error('#buildResetButton - could not find #config-bar element to mount the reset button into');
-            return;
-        }
-
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'div-button';
-        button.textContent = 'Reset config';
-        button.addEventListener('click', () => {
-            this._config.reset();
-            location.reload();
-        });
-        configBar.appendChild(button);
+    private resetConfig() {
+        this._config.reset();
+        location.reload();
     }
 
-    private buildLabel(text: string): HTMLDivElement {
+    private buildSectionLabel(text: string): HTMLDivElement {
         const label = document.createElement('div');
         label.className = 'section-label';
         label.textContent = text;

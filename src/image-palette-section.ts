@@ -3,11 +3,15 @@ import { ColourMapper, Easing } from '../shared/colour/colour-mapper';
 import { GradientBand } from './gradient-band';
 import { ColourCluster, ColourOrder, extractor } from './image-colour-extractor';
 
+export interface ExtractorConfig {
+    points: number;
+    vividness: number;
+    order: ColourOrder;
+}
+
 const BAND_HEIGHT = 60;
-const DEFAULT_POINTS = 5;
 const MIN_POINTS = 2;
 const MAX_POINTS = 16;
-const DEFAULT_ORDER = ColourOrder.LIGHTNESS;
 const MAX_SAMPLE_DIMENSION = 150; // downsample to at most this many px on the longer side before analysis
 
 // ColourMapper requires at least two support points, so the band shows a
@@ -22,8 +26,8 @@ const PLACEHOLDER_COLOURS: RGB[] = [
  * n most predominant colours (k-means clustering in OkLab space, via the
  * `extractor` singleton). Analysis runs automatically the moment a file is
  * selected. Clustering and ordering are tracked separately — changing
- * Order only re-sorts the already-found clusters; changing Points or the
- * image itself re-clusters. Shown in its own GradientBand (click-to-copy
+ * Order only re-sorts the already-found clusters; changing Points, Image,
+ * or Vividness re-clusters. Shown in its own GradientBand (click-to-copy
  * is built in there already).
  */
 export class ImagePaletteSection {
@@ -34,23 +38,33 @@ export class ImagePaletteSection {
 
     private readonly _band: GradientBand;
 
+    private _config: ExtractorConfig;
     private _currentEasing: Easing;
-    private _points: number = DEFAULT_POINTS;
-    private _order: ColourOrder = DEFAULT_ORDER;
     private _pixels: RGB[] | null = null;
     private _clusters: ColourCluster[] = [];
     private _colours: RGB[] = PLACEHOLDER_COLOURS;
     private _mapper: ColourMapper;
 
-    constructor(container: HTMLElement, easing: Easing) {
-        this._currentEasing = easing;
+    constructor(container: HTMLElement, config: ExtractorConfig, easing: Easing) {
 
+        this._currentEasing = easing;
+        this._config = config;
         const controls = document.createElement('div');
         controls.className = 'randomizer-controls'; // reuse the same row layout as the Randomizer's top row
         container.appendChild(controls);
 
-        this.buildPointsField(controls);
-        this.buildOrderField(controls);
+        this.buildPointsField(controls, this._config.points, (value) => {
+            this._config.points = value;
+        });
+
+        this.buildVividnessField(controls, this._config.vividness, (value) => {
+            this._config.vividness = value;
+        });
+
+        this.buildOrderField(controls, this._config.order, (value) => {
+            this._config.order = value;
+        });
+
         this.buildFileField(controls);
 
         const bandContainer = document.createElement('div');
@@ -66,7 +80,11 @@ export class ImagePaletteSection {
         this._band.setSource(this._mapper);
     }
 
-    private buildPointsField(container: HTMLElement): void {
+    private buildPointsField(
+        container: HTMLElement,
+        initialValue: number,
+        onChange: (value: number) => void,
+    ): void {
         const field = document.createElement('label');
         field.className = 'randomizer-field randomizer-field--fixed';
         container.appendChild(field);
@@ -77,19 +95,53 @@ export class ImagePaletteSection {
         field.appendChild(labelText);
 
         const input = document.createElement('input');
+        input.className = 'ag6775';
         input.type = 'number';
         input.min = String(MIN_POINTS);
         input.max = String(MAX_POINTS);
         input.step = '1';
-        input.value = String(this._points);
+        input.value = String(initialValue);
         input.addEventListener('change', () => {
-            this._points = Number(input.value);
+            onChange(Number(input.value));
             this.reclusterAndApply();
         });
         field.appendChild(input);
     }
 
-    private buildOrderField(container: HTMLElement): void {
+    private buildVividnessField(
+        container: HTMLElement,
+        initialValue: number,
+        onChange: (value: number) => void,
+    ): void {
+        const field = document.createElement('label');
+        field.className = 'randomizer-field randomizer-field--fixed';
+        field.title = 'How strongly to favour saturated, eye-catching colours over faithfully-averaged ones';
+        container.appendChild(field);
+
+        const labelText = document.createElement('span');
+        labelText.className = 'randomizer-field-label';
+        labelText.textContent = 'Vividness %';
+        field.appendChild(labelText);
+
+        const input = document.createElement('input');
+        input.className = 'ag6775';
+        input.type = 'number';
+        input.min = '0';
+        input.max = '100';
+        input.step = '5';
+        input.value = String(initialValue);
+        input.addEventListener('change', () => {
+            onChange(Number(input.value));
+            this.reclusterAndApply();
+        });
+        field.appendChild(input);
+    }
+
+    private buildOrderField(
+        container: HTMLElement,
+        initialValue: ColourOrder,
+        onChange: (value: ColourOrder) => void,
+    ): void {
         const field = document.createElement('label');
         field.className = 'randomizer-field randomizer-field--fixed';
         container.appendChild(field);
@@ -109,9 +161,9 @@ export class ImagePaletteSection {
             select.appendChild(option);
         }
 
-        select.value = this._order;
+        select.value = initialValue;
         select.addEventListener('change', () => {
-            this._order = select.value as ColourOrder;
+            onChange(select.value as ColourOrder);
             this.applyOrder(); // re-sort only — never re-clusters
         });
         field.appendChild(select);
@@ -204,12 +256,12 @@ export class ImagePaletteSection {
         return pixels;
     }
 
-    /** Re-runs k-means against the cached pixels (image or point count changed). */
+    /** Re-runs k-means against the cached pixels (image, point count, or vividness changed). */
     private reclusterAndApply(): void {
         if (!this._pixels || this._pixels.length === 0) {
             return;
         }
-        this._clusters = extractor.clusterColours(this._pixels, this._points);
+        this._clusters = extractor.clusterColours(this._pixels, this._config.points, this._config.vividness / 100);
         this.applyOrder();
     }
 
@@ -218,7 +270,7 @@ export class ImagePaletteSection {
         if (this._clusters.length === 0) {
             return;
         }
-        this._colours = extractor.orderColours(this._clusters, this._order);
+        this._colours = extractor.orderColours(this._clusters, this._config.order);
         this._mapper = ColourMapper.fromColours(this._colours, this._currentEasing);
         this._band.setSource(this._mapper);
     }

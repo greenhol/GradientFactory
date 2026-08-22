@@ -1,6 +1,6 @@
 {
   "name": "gradient-factory",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "GradientFactory",
   "main": "../index.js",
   "scripts": {
