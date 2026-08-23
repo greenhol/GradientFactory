@@ -44,7 +44,7 @@ export class PlaygroundSection {
 
     public setEasing(easing: Easing): void {
         this._currentEasing = easing;
-        this.commit(); // re-parse the current string under the new easing
+        this.commit();
     }
 
     private commit(): void {
@@ -52,7 +52,6 @@ export class PlaygroundSection {
         this.rebuildSwatches(mapper.supportPoints);
     }
 
-    /** Parses a gradient string and pushes it to the text field, subject, and band. */
     private applyGradientString(gradientString: string): ColourMapper {
         this._input.value = gradientString;
         this._gradientString$.next(gradientString);
@@ -61,13 +60,6 @@ export class PlaygroundSection {
         return mapper;
     }
 
-    /**
-     * Renders one 34x34 colour-picker swatch per unique colour in the
-     * gradient (the loop's closing stop always mirrors the first, so a
-     * 3-stop string yields 2 swatches). Torn down and rebuilt from
-     * scratch after every commit, since editing the text field directly
-     * can change the number/positions of stops entirely.
-     */
     private rebuildSwatches(points: SupportPoint[]): void {
         this._swatchRow.innerHTML = '';
 
@@ -90,7 +82,6 @@ export class PlaygroundSection {
         }
     }
 
-    /** Groups support points that currently share an identical colour. */
     private groupByColour(points: SupportPoint[]): ColourGroup[] {
         const groups: ColourGroup[] = [];
 
@@ -110,7 +101,6 @@ export class PlaygroundSection {
         return a.r === b.r && a.g === b.g && a.b === b.b;
     }
 
-    /** Applies a picker's new colour to every support point that previously shared its old colour. */
     private applySwatchColour(points: SupportPoint[], indices: number[], hex: string): void {
         const newColour = this.hexToRgb(hex);
         const updated: SupportPoint[] = points.map((point, index) =>
@@ -119,7 +109,6 @@ export class PlaygroundSection {
         this.applyGradientString(ColourMapper.stringifySupportPoints(updated));
     }
 
-    /** Parses the browser-native "#rrggbb" format a colour input's .value always produces. */
     private hexToRgb(hex: string): RGB {
         return {
             r: parseInt(hex.slice(1, 3), 16),

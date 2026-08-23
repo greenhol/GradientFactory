@@ -19,10 +19,6 @@ export interface RandomizerConfig {
  * distributeColors, in OkLch space) from a seed/count field and two
  * min/max range pairs (Lightness, Chroma). Shown in its own clickable
  * GradientBand — click copies the gradient string, same as the gallery.
- *
- * Changing the global Easing re-colours the *same* generated colour
- * array (like the gallery does) — only the "Randomize" button actually
- * generates new colours.
  */
 export class RandomizerSection {
 

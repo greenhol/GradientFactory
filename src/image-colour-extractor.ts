@@ -12,13 +12,13 @@ export enum ColourOrder {
 export interface ColourCluster {
     colour: RGB;
     okLab: OkLab;
-    weight: number; // fraction of sampled pixels assigned to this cluster
+    weight: number;
 }
 
 interface KMeansResult {
     centroids: OkLab[];
     assignments: number[];
-    inertia: number; // sum of squared distance from every point to its assigned centroid — lower is tighter/better
+    inertia: number;
 }
 
 /**
@@ -27,56 +27,27 @@ interface KMeansResult {
  * approximates human colour perception far better than raw RGB, so the
  * resulting cluster centroids genuinely look "predominant" rather than
  * just numerically common.
- *
- * k-means is randomly seeded, so a single run's quality varies. Each call
- * here runs RESTART_COUNT independent attempts (seeded 0, 1, 2, ... — so
- * identical inputs always produce identical output) and keeps whichever
- * attempt has the lowest inertia. This both stabilises results (repeated
- * calls with the same parameters no longer look "random") and makes the
- * vividness weighting's effect visible, since it's no longer buried under
- * run-to-run noise.
- *
- * Clustering and ordering are exposed as two separate public methods so
- * that changing only the sort order never re-runs clustering, which could
- * otherwise silently return a different palette than what's currently on
- * screen.
  */
 class ImageColourExtractor {
 
-    // How many independent, differently-seeded k-means attempts to run per
-    // call, keeping the best (lowest-inertia) one. Higher = more stable/
-    // better results, at roughly linear extra cost. 6-10 is a reasonable
-    // range for a few thousand downsampled pixels; drop it if this ever
-    // feels sluggish on slower devices.
+    /**
+     * How many independent, differently-seeded k-means attempts to run per
+     * call, keeping the best (lowest-inertia) one.
+     * Higher = more stable/better results, at roughly linear extra cost.
+     */
     private static readonly RESTART_COUNT = 8;
 
-    // `vividness` (0–1) scales up to this exponent: weight = chroma^exponent.
-    // A power law (not a linear multiplier) is needed because what it has
-    // to overcome is pixel COUNT, not just weight-per-pixel — a vivid
-    // accent might be 5% of the pixels against a 95% dull background, so
-    // even a 2-3x linear weight advantage gets swamped in the sum. Small
-    // chroma differences need to be amplified exponentially to let a
-    // numerically small vivid minority actually dominate.
-    //
-    // Tuning: 0 = off (plain mean). ~2-3 = noticeable but gentle. ~4-6 =
-    // strong, clearly favours accent colours. Much above that, a single
-    // unusually vivid pixel (e.g. a JPEG artifact or a tiny bright object)
-    // can start to dominate a whole cluster on its own — diminishing
-    // returns / risk of instability past that point.
+    /**
+     * `vividness` (0–1) scales up to this exponent: weight = chroma^exponent. Tuning:
+     * 0 = off (plain mean)
+     * ~2-3 = noticeable but gentle.
+     * ~4-6 = strong, clearly favours accent colours.
+     */
     private static readonly SEED_VIVIDNESS_MAX_EXPONENT = 6;
     private static readonly CENTROID_VIVIDNESS_MAX_EXPONENT = 6;
 
-    // Chroma floor added before exponentiating, so a perfectly neutral
-    // (chroma = 0) pixel never gets a literal zero weight — which would
-    // otherwise collapse the weighted sum to zero if every pixel in a
-    // cluster happened to be neutral.
     private static readonly CHROMA_EPSILON = 0.001;
 
-    /**
-     * @param vividness 0–1. At 0, behaves as plain unweighted k-means.
-     * Higher values favour more saturated, eye-catching colours over
-     * faithfully-averaged ones.
-     */
     public clusterColours(pixels: RGB[], k: number, vividness: number = 0): ColourCluster[] {
         const points = pixels.map((p) => converter.rgbToOkLab(p));
         const chromas = points.map((p) => this.chroma(p));
@@ -108,9 +79,6 @@ class ImageColourExtractor {
             .filter((cluster) => cluster.weight > 0); // drop clusters nothing ended up assigned to
     }
 
-    /**
-     * Orders an already-clustered palette. Pure re-sort — no clustering here.
-     */
     public orderColours(clusters: ColourCluster[], order: ColourOrder): RGB[] {
         switch (order) {
             case ColourOrder.LIGHTNESS:
@@ -142,9 +110,6 @@ class ImageColourExtractor {
         for (let iter = 0; iter < maxIterations; iter++) {
             let changed = false;
 
-            // Assignment stays purely distance-based regardless of
-            // vividness, so clusters remain a sensible spatial partition
-            // of the image — only seeding and the final colour are biased.
             for (let i = 0; i < count; i++) {
                 const nearest = this.nearestCentroidIndex(points[i], centroids);
                 if (assignments[i] !== nearest) {

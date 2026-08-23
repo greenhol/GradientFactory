@@ -12,10 +12,8 @@ export interface ExtractorConfig {
 const BAND_HEIGHT = 60;
 const MIN_POINTS = 2;
 const MAX_POINTS = 16;
-const MAX_SAMPLE_DIMENSION = 150; // downsample to at most this many px on the longer side before analysis
+const MAX_SAMPLE_DIMENSION = 150;
 
-// ColourMapper requires at least two support points, so the band shows a
-// flat white strip until an image is uploaded and a real palette replaces it.
 const PLACEHOLDER_COLOURS: RGB[] = [
     { r: 255, g: 255, b: 255 },
     { r: 255, g: 255, b: 255 },
@@ -27,13 +25,10 @@ const PLACEHOLDER_COLOURS: RGB[] = [
  * `extractor` singleton). Analysis runs automatically the moment a file is
  * selected. Clustering and ordering are tracked separately — changing
  * Order only re-sorts the already-found clusters; changing Points, Image,
- * or Vividness re-clusters. Shown in its own GradientBand (click-to-copy
- * is built in there already).
+ * or Vividness re-clusters. Shown in its own GradientBand
  */
 export class ImagePaletteSection {
 
-    // unique id per instance, so the hidden <input>/<label for> pairing
-    // never collides if more than one section is ever mounted at once
     private static _instanceCounter = 0;
 
     private readonly _band: GradientBand;
@@ -185,10 +180,6 @@ export class ImagePaletteSection {
 
         const inputId = `image-upload-${ImagePaletteSection._instanceCounter++}`;
 
-        // The real input: visually hidden (not display:none — that would
-        // remove it from the tab order and break keyboard accessibility)
-        // but still focusable and still the thing that actually opens the
-        // native file picker.
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
@@ -196,9 +187,6 @@ export class ImagePaletteSection {
         input.className = 'file-upload-input';
         row.appendChild(input);
 
-        // A <label for="..."> pointing at a file input natively opens its
-        // picker on click, or on Enter/Space when the input is keyboard-
-        // focused — no JS needed for the triggering itself.
         const trigger = document.createElement('label');
         trigger.setAttribute('for', inputId);
         trigger.className = 'div-button';
