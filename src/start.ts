@@ -81,11 +81,8 @@ export class Start {
 
         const gallerySection = document.createElement('section');
         gallerySection.appendChild(this.buildSectionLabel('Gallery'));
-        const galleryGrid = document.createElement('div');
-        galleryGrid.className = 'gallery-grid';
-        gallerySection.appendChild(galleryGrid);
         root.appendChild(gallerySection);
-        this._gallery = new GallerySection(galleryGrid, this._config.data.easing);
+        this._gallery = new GallerySection(gallerySection, this._config.data.easing);
 
         this._playground.gradientString$
             .pipe(filter((gradientString) => gradientString != null))
@@ -106,7 +103,7 @@ export class Start {
 
     private buildEasingDropdown(): HTMLSelectElement {
         const select = document.createElement('select');
-        select.className = 'easing-select';
+        select.id = 'easing-selector';
 
         for (const value of Object.values(Easing)) {
             const option = document.createElement('option');

@@ -147,7 +147,7 @@ export class ImagePaletteSection {
         field.appendChild(labelText);
 
         const select = document.createElement('select');
-        select.className = 'easing-select'; // reuse existing dropdown styling
+        select.id = 'order-selector';
 
         for (const value of Object.values(ColourOrder)) {
             const option = document.createElement('option');
