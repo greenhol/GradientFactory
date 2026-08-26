@@ -2,6 +2,7 @@ import { RGB } from '../shared/colour/colour';
 import { ColourMapper, Easing } from '../shared/colour/colour-mapper';
 import { GradientBand } from './gradient-band';
 import { ColourCluster, ColourOrder, extractor } from './image-colour-extractor';
+import { buildSectionHeader } from './section-header';
 
 export interface ExtractorConfig {
     points: number;
@@ -41,9 +42,11 @@ export class ImagePaletteSection {
     private _mapper: ColourMapper;
 
     constructor(container: HTMLElement, config: ExtractorConfig, easing: Easing) {
-
         this._currentEasing = easing;
         this._config = config;
+
+        container.appendChild(buildSectionHeader('Image Extractor'));
+
         const controls = document.createElement('div');
         controls.className = 'randomizer-controls'; // reuse the same row layout as the Randomizer's top row
         container.appendChild(controls);

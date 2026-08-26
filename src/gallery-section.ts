@@ -1,15 +1,15 @@
-import { Colour, RGB } from '../shared/colour/colour';
 import { ColourMapper, Easing } from '../shared/colour/colour-mapper';
 import { GradientBand } from './gradient-band';
-
-interface GradientSampleCategory {
-    name: string;
-    gradients: GradientSample[];
-}
+import { buildSectionHeader } from './section-header';
 
 interface GradientSample {
     name: string;
     colours: string;
+}
+
+interface GradientSampleCategory {
+    name: string;
+    gradients: GradientSample[];
 }
 
 interface GallerySampleEntry {
@@ -36,6 +36,7 @@ export class GallerySection {
             name: 'Custom',
             gradients: [
                 { name: 'Cappuccino', colours: '0:#faf5ed, 0.2:#d2aa78, 0.4:#824a25, 0.6:#412313, 0.95:#f2ebdc, 1:#faf5ed' },
+                { name: 'Rust', colours: '0:#f5deb3, 0.25:#d2691e, 0.5:#8b0000, 0.75:#36454f, 1:#f5deb3' },
             ],
         },
         {
@@ -80,7 +81,7 @@ export class GallerySection {
         this._currentEasing = easing;
         this._currentCategory = this._categories[0];
 
-        container.appendChild(this.buildCategoryDropdown());
+        container.appendChild(buildSectionHeader('Gallery', this.buildCategoryDropdown()));
 
         this._grid = document.createElement('div');
         this._grid.className = 'gallery-grid';
@@ -100,7 +101,6 @@ export class GallerySection {
     private buildCategoryDropdown(): HTMLSelectElement {
         const select = document.createElement('select');
         select.id = 'category-selector';
-        select.style.marginBottom = '32px';
 
         for (const category of this._categories) {
             const option = document.createElement('option');
@@ -110,6 +110,7 @@ export class GallerySection {
         }
 
         select.value = this._currentCategory.name;
+        select.style.marginBottom = '-9px';
         select.addEventListener('change', () => {
             const category = this._categories.find((c) => c.name === select.value);
             if (category) {

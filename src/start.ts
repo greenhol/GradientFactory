@@ -5,7 +5,7 @@ import { GallerySection } from './gallery-section';
 import { ColourOrder } from './image-colour-extractor';
 import { ExtractorConfig, ImagePaletteSection } from './image-palette-section';
 import { PlaygroundSection } from './playground-section';
-import { RandomizerConfig, RandomizerSection } from './randomizer-section';
+import { RandomizerConfig, RandomizerSection, RandomizerType } from './randomizer-section';
 
 declare const APP_NAME: string;
 declare const APP_VERSION: string;
@@ -32,12 +32,17 @@ export class Start {
             easing: Easing.RGB_LINEAR,
             playgroundString: '0:#000000, 0.5:#FFFFFF, 1:#000000',
             randomizer: {
+                type: RandomizerType.EVEN,
                 seed: -1,
                 count: 5,
                 lMin: 0,
                 lMax: 1,
                 cMin: 0,
                 cMax: 0.5,
+                aMin: 0.4,
+                aMax: 0.6,
+                bMin: 0.3,
+                bMax: 0.5,
             },
             extractor: {
                 points: 5,
@@ -65,22 +70,18 @@ export class Start {
         root.appendChild(configSection);
 
         const playgroundSection = document.createElement('section');
-        playgroundSection.appendChild(this.buildSectionLabel('Work Bench'));
         root.appendChild(playgroundSection);
         this._playground = new PlaygroundSection(playgroundSection, this._config.data.playgroundString, this._config.data.easing);
 
         const randomizerSection = document.createElement('section');
-        randomizerSection.appendChild(this.buildSectionLabel('Randomizer'));
         root.appendChild(randomizerSection);
         this._randomizer = new RandomizerSection(randomizerSection, this._config.data.randomizer, this._config.data.easing);
 
         const imageSection = document.createElement('section');
-        imageSection.appendChild(this.buildSectionLabel('Image Extractor'));
         root.appendChild(imageSection);
         this._image = new ImagePaletteSection(imageSection, this._config.data.extractor, this._config.data.easing);
 
         const gallerySection = document.createElement('section');
-        gallerySection.appendChild(this.buildSectionLabel('Gallery'));
         root.appendChild(gallerySection);
         this._gallery = new GallerySection(gallerySection, this._config.data.easing);
 

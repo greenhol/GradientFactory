@@ -2,6 +2,7 @@ import { BehaviorSubject, Observable } from 'rxjs';
 import { Colour, RGB } from '../shared/colour/colour';
 import { ColourMapper, Easing, SupportPoint } from '../shared/colour/colour-mapper';
 import { GradientBand } from './gradient-band';
+import { buildSectionHeader } from './section-header';
 
 interface ColourGroup {
     colour: RGB;
@@ -20,6 +21,8 @@ export class PlaygroundSection {
 
     constructor(container: HTMLElement, initialGradient: string, easing: Easing) {
         this._currentEasing = easing;
+
+        container.appendChild(buildSectionHeader('Work Bench'));
 
         const initialMapper = ColourMapper.fromString(initialGradient, easing);
         this._band = new GradientBand(container, initialMapper, 100);
